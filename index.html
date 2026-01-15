@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Rally Racer - Fast Browser Racing Game</title>
+  <meta name="description" content="Play 2D Rally Racer — a fast, browser-based racing game with smooth controls, obstacles, and real-time lap tracking.">
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "2D Rally Racer",
+    "genre": "Racing",
+    "gamePlatform": "WebBrowser",
+    "applicationCategory": "Game"
+  }
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: 'hsl(200, 90%, 45%)',
+              foreground: 'hsl(0, 0%, 100%)',
+            },
+            secondary: {
+              DEFAULT: 'hsl(200, 85%, 35%)',
+              foreground: 'hsl(0, 0%, 100%)',
+            },
+            tertiary: {
+              DEFAULT: 'hsl(310, 90%, 55%)',
+              foreground: 'hsl(0, 0%, 100%)',
+            },
+            neutral: {
+              DEFAULT: 'hsl(210, 20%, 8%)',
+              foreground: 'hsl(0, 0%, 95%)',
+              50: 'hsl(0, 0%, 97%)',
+              100: 'hsl(0, 0%, 88%)',
+              200: 'hsl(0, 0%, 70%)',
+              300: 'hsl(0, 0%, 55%)',
+              400: 'hsl(0, 0%, 45%)',
+              500: 'hsl(0, 0%, 35%)',
+              600: 'hsl(0, 0%, 25%)',
+              700: 'hsl(0, 0%, 15%)',
+              800: 'hsl(0, 0%, 10%)',
+              900: 'hsl(0, 0%, 5%)',
+            },
+            success: 'hsl(140, 65%, 45%)',
+            warning: 'hsl(40, 95%, 50%)',
+          },
+          fontFamily: {
+            sans: ['"DM Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          spacing: {
+            '4': '1rem',
+            '8': '2rem',
+            '12': '3rem',
+            '16': '4rem',
+            '24': '6rem',
+            '32': '8rem',
+            '48': '12rem',
+            '64': '16rem',
+          },
+          borderRadius: {
+            DEFAULT: '8px',
+          },
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: hsl(210, 20%, 8%);
+      color: hsl(0, 0%, 95%);
+    }
+
+    canvas {
+      display: block;
+      image-rendering: crisp-edges;
+      image-rendering: pixelated;
+    }
+
+    .transition-ease-in {
+      transition: all 0.3s ease-in;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .shake {
+      animation: shake 0.3s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    button:focus-visible {
+      outline: 2px solid hsl(200, 100%, 70%);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="game-container" class="relative w-full h-screen flex items-center justify-center bg-neutral-900">
+      <canvas id="game-canvas" class="w-full h-full"></canvas>
+      
+      <!-- HUD Layer -->
+      <div id="hud" class="absolute top-0 left-0 w-full px-8 py-6 text-neutral-foreground flex justify-between items-start pointer-events-none">
+        <div id="speed-display" class="font-mono text-lg md:text-xl text-neutral-foreground">Speed: <span class="text-primary">0</span> km/h</div>
+        <div id="lap-display" class="font-mono text-lg md:text-xl text-neutral-foreground">Lap: <span class="text-tertiary">0</span>/3</div>
+        <div id="timer-display" class="font-mono text-lg md:text-xl text-neutral-foreground">Time: <span class="text-success">00:00</span></div>
+      </div>
+
+      <!-- Lap Complete Notification -->
+      <div id="lap-notification" class="hidden absolute top-24 left-1/2 transform -translate-x-1/2 bg-success text-neutral-foreground px-8 py-4 rounded font-sans text-xl font-normal pointer-events-none">
+        Lap Complete!
+      </div>
+
+      <!-- Start Overlay -->
+      <div id="overlay-start" class="absolute inset-0 flex flex-col gap-8 items-center justify-center bg-neutral-900 text-center px-8">
+        <img src="https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_1.png" alt="Neon speed streaks background" class="absolute inset-0 w-full h-full object-cover opacity-30" loading="eager">
+        <div class="relative z-10 flex flex-col gap-8 items-center">
+          <h1 class="text-4xl md:text-5xl font-sans font-bold text-neutral-foreground">2D Rally Racer</h1>
+          <p class="text-neutral-200 max-w-md text-base md:text-lg font-sans font-normal">Use arrow keys to steer and accelerate. Avoid obstacles. Complete all laps to win!</p>
+          <button id="start-button" class="bg-primary text-primary-foreground py-4 px-12 rounded font-sans font-normal text-base transition-ease-in hover:bg-[hsl(200,95%,50%)] focus:outline-2 focus:outline-[hsl(200,100%,70%)]">START RACE</button>
+        </div>
+      </div>
+
+      <!-- End Overlay -->
+      <div id="overlay-end" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 text-center px-8 fade-in">
+        <img src="https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_5.png" alt="Game over neon background" class="absolute inset-0 w-full h-full object-cover opacity-20" loading="lazy">
+        <div class="relative z-10 flex flex-col gap-8 items-center">
+          <h2 class="text-3xl md:text-4xl font-sans font-bold text-neutral-foreground mb-4">Race Over!</h2>
+          <p id="result-message" class="text-neutral-200 mb-6 text-lg md:text-xl font-sans font-normal">Your time: 01:32</p>
+          <button id="restart-button" class="bg-secondary text-secondary-foreground py-4 px-12 rounded font-sans font-normal text-base transition-ease-in hover:bg-[hsl(200,90%,40%)] focus:outline-2 focus:outline-[hsl(200,100%,70%)]">RESTART</button>
+        </div>
+      </div>
+
+      <!-- Mobile Controls -->
+      <div id="mobile-controls" class="hidden absolute bottom-8 left-0 right-0 px-8 pointer-events-none md:hidden">
+        <div class="flex justify-between items-end pointer-events-auto">
+          <div class="flex flex-col gap-4">
+            <button id="btn-up" class="bg-secondary/85 text-secondary-foreground w-16 h-16 rounded flex items-center justify-center font-sans font-normal text-2xl transition-ease-in active:bg-[hsl(200,90%,40%)]">↑</button>
+            <div class="flex gap-4">
+              <button id="btn-left" class="bg-secondary/85 text-secondary-foreground w-16 h-16 rounded flex items-center justify-center font-sans font-normal text-2xl transition-ease-in active:bg-[hsl(200,90%,40%)]">←</button>
+              <button id="btn-down" class="bg-secondary/85 text-secondary-foreground w-16 h-16 rounded flex items-center justify-center font-sans font-normal text-2xl transition-ease-in active:bg-[hsl(200,90%,40%)]">↓</button>
+              <button id="btn-right" class="bg-secondary/85 text-secondary-foreground w-16 h-16 rounded flex items-center justify-center font-sans font-normal text-2xl transition-ease-in active:bg-[hsl(200,90%,40%)]">→</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Game Configuration
+    const CONFIG = {
+      canvasWidth: 800,
+      canvasHeight: 600,
+      playerSpeed: 3,
+      maxSpeed: 8,
+      acceleration: 0.15,
+      deceleration: 0.1,
+      turnSpeed: 0.08,
+      opponentSpeed: 2.5,
+      totalLaps: 3,
+      trackWidth: 200,
+      obstacleCount: 5,
+    };
+
+    // Game State
+    let gameState = {
+      isRunning: false,
+      isPaused: false,
+      currentLap: 0,
+      startTime: 0,
+      elapsedTime: 0,
+      playerX: 0,
+      playerY: 0,
+      playerSpeed: 0,
+      playerAngle: 0,
+      opponents: [],
+      obstacles: [],
+      checkpoints: [],
+      lastCheckpoint: -1,
+      keys: {},
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const startOverlay = document.getElementById('overlay-start');
+    const endOverlay = document.getElementById('overlay-end');
+    const startButton = document.getElementById('start-button');
+    const restartButton = document.getElementById('restart-button');
+    const speedDisplay = document.getElementById('speed-display');
+    const lapDisplay = document.getElementById('lap-display');
+    const timerDisplay = document.getElementById('timer-display');
+    const resultMessage = document.getElementById('result-message');
+    const lapNotification = document.getElementById('lap-notification');
+    const gameContainer = document.getElementById('game-container');
+    const mobileControls = document.getElementById('mobile-controls');
+
+    // Images
+    const images = {
+      background: new Image(),
+      track: new Image(),
+      playerCar: new Image(),
+      opponentCar: new Image(),
+      gameOverBg: new Image(),
+    };
+
+    images.background.src = 'https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_1.png';
+    images.track.src = 'https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_2.png';
+    images.playerCar.src = 'https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_3.png';
+    images.opponentCar.src = 'https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_4.png';
+    images.gameOverBg.src = 'https://c.animaapp.com/mkfgh8kfPEDfex/img/ai_5.png';
+
+    // Setup Canvas
+    function setupCanvas() {
+      const container = canvas.parentElement;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      const scale = Math.min(
+        containerWidth / CONFIG.canvasWidth,
+        containerHeight / CONFIG.canvasHeight
+      );
+      
+      canvas.width = CONFIG.canvasWidth;
+      canvas.height = CONFIG.canvasHeight;
+      canvas.style.width = `${CONFIG.canvasWidth * scale}px`;
+      canvas.style.height = `${CONFIG.canvasHeight * scale}px`;
+    }
+
+    // Initialize Game
+    function initGame() {
+      setupCanvas();
+      
+      gameState.playerX = CONFIG.canvasWidth / 2;
+      gameState.playerY = CONFIG.canvasHeight - 100;
+      gameState.playerSpeed = 0;
+      gameState.playerAngle = -Math.PI / 2;
+      gameState.currentLap = 0;
+      gameState.lastCheckpoint = -1;
+      gameState.elapsedTime = 0;
+      
+      // Create opponents
+      gameState.opponents = [];
+      for (let i = 0; i < 3; i++) {
+        gameState.opponents.push({
+          x: CONFIG.canvasWidth / 2 + (i - 1) * 60,
+          y: CONFIG.canvasHeight - 150 - i * 50,
+          speed: CONFIG.opponentSpeed + Math.random() * 0.5,
+          angle: -Math.PI / 2,
+          lane: Math.random() > 0.5 ? 1 : -1,
+        });
+      }
+      
+      // Create obstacles
+      gameState.obstacles = [];
+      for (let i = 0; i < CONFIG.obstacleCount; i++) {
+        gameState.obstacles.push({
+          x: CONFIG.canvasWidth / 2 + (Math.random() - 0.5) * CONFIG.trackWidth,
+          y: Math.random() * CONFIG.canvasHeight,
+          width: 30,
+          height: 30,
+        });
+      }
+      
+      // Create checkpoints
+      gameState.checkpoints = [
+        { y: CONFIG.canvasHeight * 0.75 },
+        { y: CONFIG.canvasHeight * 0.5 },
+        { y: CONFIG.canvasHeight * 0.25 },
+        { y: 50 },
+      ];
+    }
+
+    // Start Game
+    function startGame() {
+      initGame();
+      startOverlay.classList.add('hidden');
+      gameState.isRunning = true;
+      gameState.startTime = Date.now();
+      
+      // Show mobile controls on touch devices
+      if ('ontouchstart' in window) {
+        mobileControls.classList.remove('hidden');
+      }
+      
+      gameLoop();
+    }
+
+    // Update Game
+    function updateGame(deltaTime) {
+      if (!gameState.isRunning) return;
+      
+      // Update timer
+      gameState.elapsedTime = Date.now() - gameState.startTime;
+      
+      // Handle input
+      if (gameState.keys['ArrowUp'] || gameState.keys['up']) {
+        gameState.playerSpeed = Math.min(gameState.playerSpeed + CONFIG.acceleration, CONFIG.maxSpeed);
+      } else if (gameState.keys['ArrowDown'] || gameState.keys['down']) {
+        gameState.playerSpeed = Math.max(gameState.playerSpeed - CONFIG.acceleration, -CONFIG.maxSpeed / 2);
+      } else {
+        if (gameState.playerSpeed > 0) {
+          gameState.playerSpeed = Math.max(0, gameState.playerSpeed - CONFIG.deceleration);
+        } else if (gameState.playerSpeed < 0) {
+          gameState.playerSpeed = Math.min(0, gameState.playerSpeed + CONFIG.deceleration);
+        }
+      }
+      
+      if (gameState.keys['ArrowLeft'] || gameState.keys['left']) {
+        gameState.playerAngle -= CONFIG.turnSpeed;
+      }
+      if (gameState.keys['ArrowRight'] || gameState.keys['right']) {
+        gameState.playerAngle += CONFIG.turnSpeed;
+      }
+      
+      // Update player position
+      gameState.playerX += Math.cos(gameState.playerAngle) * gameState.playerSpeed;
+      gameState.playerY += Math.sin(gameState.playerAngle) * gameState.playerSpeed;
+      
+      // Keep player on track
+      const trackLeft = CONFIG.canvasWidth / 2 - CONFIG.trackWidth / 2;
+      const trackRight = CONFIG.canvasWidth / 2 + CONFIG.trackWidth / 2;
+      gameState.playerX = Math.max(trackLeft + 20, Math.min(trackRight - 20, gameState.playerX));
+      
+      // Wrap around vertically
+      if (gameState.playerY < 0) {
+        gameState.playerY = CONFIG.canvasHeight;
+      } else if (gameState.playerY > CONFIG.canvasHeight) {
+        gameState.playerY = 0;
+      }
+      
+      // Update opponents
+      gameState.opponents.forEach(opp => {
+        opp.y -= opp.speed;
+        opp.x += Math.sin(Date.now() / 1000 + opp.lane) * 0.5;
+        
+        if (opp.y < -50) {
+          opp.y = CONFIG.canvasHeight + 50;
+          opp.x = CONFIG.canvasWidth / 2 + (Math.random() - 0.5) * CONFIG.trackWidth * 0.8;
+        }
+      });
+      
+      // Check collisions with obstacles
+      gameState.obstacles.forEach(obs => {
+        const dx = gameState.playerX - obs.x;
+        const dy = gameState.playerY - obs.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < 30) {
+          gameState.playerSpeed *= 0.5;
+          gameContainer.classList.add('shake');
+          setTimeout(() => gameContainer.classList.remove('shake'), 300);
+        }
+      });
+      
+      // Check checkpoints
+      for (let i = 0; i < gameState.checkpoints.length; i++) {
+        const checkpoint = gameState.checkpoints[i];
+        if (Math.abs(gameState.playerY - checkpoint.y) < 30 && i === gameState.lastCheckpoint + 1) {
+          gameState.lastCheckpoint = i;
+          
+          if (i === gameState.checkpoints.length - 1) {
+            gameState.currentLap++;
+            gameState.lastCheckpoint = -1;
+            
+            // Show lap notification
+            lapNotification.classList.remove('hidden');
+            lapNotification.classList.add('fade-in');
+            setTimeout(() => {
+              lapNotification.classList.add('hidden');
+              lapNotification.classList.remove('fade-in');
+            }, 2000);
+            
+            if (gameState.currentLap >= CONFIG.totalLaps) {
+              endGame(true);
+            }
+          }
+        }
+      }
+      
+      // Update HUD
+      updateHUD();
+    }
+
+    // Render Game
+    function renderGame() {
+      // Clear canvas
+      ctx.fillStyle = 'hsl(210, 20%, 8%)';
+      ctx.fillRect(0, 0, CONFIG.canvasWidth, CONFIG.canvasHeight);
+      
+      // Draw background
+      ctx.globalAlpha = 0.3;
+      ctx.drawImage(images.background, 0, 0, CONFIG.canvasWidth, CONFIG.canvasHeight);
+      ctx.globalAlpha = 1;
+      
+      // Draw track
+      const trackLeft = CONFIG.canvasWidth / 2 - CONFIG.trackWidth / 2;
+      const trackRight = CONFIG.canvasWidth / 2 + CONFIG.trackWidth / 2;
+      
+      ctx.fillStyle = 'hsl(0, 0%, 15%)';
+      ctx.fillRect(trackLeft, 0, CONFIG.trackWidth, CONFIG.canvasHeight);
+      
+      // Draw track lines
+      ctx.strokeStyle = 'hsl(40, 95%, 50%)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([20, 20]);
+      ctx.beginPath();
+      ctx.moveTo(CONFIG.canvasWidth / 2, 0);
+      ctx.lineTo(CONFIG.canvasWidth / 2, CONFIG.canvasHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Draw checkpoints
+      ctx.strokeStyle = 'hsl(200, 90%, 45%)';
+      ctx.lineWidth = 3;
+      gameState.checkpoints.forEach((checkpoint, i) => {
+        if (i === gameState.lastCheckpoint + 1) {
+          ctx.strokeStyle = 'hsl(140, 65%, 45%)';
+        } else {
+          ctx.strokeStyle = 'hsl(200, 90%, 45%)';
+        }
+        ctx.beginPath();
+        ctx.moveTo(trackLeft, checkpoint.y);
+        ctx.lineTo(trackRight, checkpoint.y);
+        ctx.stroke();
+      });
+      
+      // Draw obstacles
+      ctx.fillStyle = 'hsl(310, 90%, 55%)';
+      gameState.obstacles.forEach(obs => {
+        ctx.fillRect(obs.x - obs.width / 2, obs.y - obs.height / 2, obs.width, obs.height);
+      });
+      
+      // Draw opponents
+      gameState.opponents.forEach(opp => {
+        ctx.save();
+        ctx.translate(opp.x, opp.y);
+        ctx.rotate(opp.angle + Math.PI / 2);
+        ctx.drawImage(images.opponentCar, -15, -20, 30, 40);
+        ctx.restore();
+      });
+      
+      // Draw player
+      ctx.save();
+      ctx.translate(gameState.playerX, gameState.playerY);
+      ctx.rotate(gameState.playerAngle + Math.PI / 2);
+      ctx.drawImage(images.playerCar, -15, -20, 30, 40);
+      ctx.restore();
+    }
+
+    // Update HUD
+    function updateHUD() {
+      const speed = Math.abs(Math.round(gameState.playerSpeed * 15));
+      speedDisplay.innerHTML = `Speed: <span class="text-primary">${speed}</span> km/h`;
+      
+      lapDisplay.innerHTML = `Lap: <span class="text-tertiary">${gameState.currentLap}</span>/${CONFIG.totalLaps}`;
+      
+      const minutes = Math.floor(gameState.elapsedTime / 60000);
+      const seconds = Math.floor((gameState.elapsedTime % 60000) / 1000);
+      timerDisplay.innerHTML = `Time: <span class="text-success">${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</span>`;
+    }
+
+    // End Game
+    function endGame(won) {
+      gameState.isRunning = false;
+      
+      const minutes = Math.floor(gameState.elapsedTime / 60000);
+      const seconds = Math.floor((gameState.elapsedTime % 60000) / 1000);
+      const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      
+      if (won) {
+        resultMessage.textContent = `Congratulations! You completed all laps in ${timeString}`;
+      } else {
+        resultMessage.textContent = `Race ended. Time: ${timeString}`;
+      }
+      
+      endOverlay.classList.remove('hidden');
+    }
+
+    // Game Loop
+    let lastTime = 0;
+    function gameLoop(timestamp = 0) {
+      const deltaTime = timestamp - lastTime;
+      lastTime = timestamp;
+      
+      updateGame(deltaTime);
+      renderGame();
+      
+      if (gameState.isRunning) {
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // Event Listeners
+    startButton.addEventListener('click', startGame);
+    restartButton.addEventListener('click', () => {
+      endOverlay.classList.add('hidden');
+      startGame();
+    });
+
+    // Keyboard input
+    window.addEventListener('keydown', (e) => {
+      gameState.keys[e.key] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      gameState.keys[e.key] = false;
+    });
+
+    // Mobile controls
+    const mobileButtons = {
+      'btn-up': 'up',
+      'btn-down': 'down',
+      'btn-left': 'left',
+      'btn-right': 'right',
+    };
+
+    Object.keys(mobileButtons).forEach(btnId => {
+      const btn = document.getElementById(btnId);
+      const key = mobileButtons[btnId];
+      
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        gameState.keys[key] = true;
+      });
+      
+      btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        gameState.keys[key] = false;
+      });
+    });
+
+    // Resize handler
+    window.addEventListener('resize', setupCanvas);
+
+    // Initialize
+    setupCanvas();
+  </script>
+</body>
+</html>
